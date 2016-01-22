@@ -30,8 +30,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.client.*;
 import rx.Subscriber;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
@@ -79,7 +78,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
     //private boolean noReturn = false;
 
     private afterTaskCompletion<X> taskCompletion;
-    private afterTaskFailure<X> taskFailure;
+    private afterTaskFailure<M> taskFailure;
     private afterServerTaskFailure<M> serverTaskFailure;
     private afterClientTaskFailure<M> clientTaskFailure;
     private com.grizzly.rest.Model.commonTasks commonTasks;
@@ -206,6 +205,10 @@ public class GenericRestCall<T, X, M> implements Runnable {
      */
     public void setJsonResponseEntity(X jsonResponseEntity) {
         this.jsonResponseEntity = jsonResponseEntity;
+    }
+
+    public String getErrorResponse(){
+        return errorResponse;
     }
 
     /**
@@ -491,16 +494,22 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private void createSolidCache(){
 
-        ObjectMapper mapper = new ObjectMapper();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ObjectMapper mapper = new ObjectMapper();
 
-        try {
-            File dir = new File(basePath + File.separator + "EasyRest");
-            dir.mkdir();
-            File f = new File(getCachedFileName());
-            mapper.writeValue(f, jsonResponseEntity);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+                try {
+                    File dir = new File(basePath + File.separator + "EasyRest");
+                    dir.mkdir();
+                    File f = new File(getCachedFileName());
+                    mapper.writeValue(f, jsonResponseEntity);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
     }
 
     private boolean getFromSolidCache()
@@ -690,11 +699,11 @@ public class GenericRestCall<T, X, M> implements Runnable {
                         getFromSolidCache();
                         if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
                         result = true;
-                        System.out.println("EasyRest - We got from cache!");
+                        if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from cache!");
                     } else {
                         response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, jsonResponseEntityClass);
                         result = this.processResponseWithData(response);
-                        System.out.println("EasyRest - We got from service, cache failed!");
+                        if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from service, cache failed!");
                     }
                 }
 
@@ -849,8 +858,8 @@ public class GenericRestCall<T, X, M> implements Runnable {
             }
             if(taskCompletion != null){
                 taskCompletion.onTaskCompleted(jsonResponseEntity);
-                notifySubscribers(jsonResponseEntity, true);
             }
+            notifySubscribers(jsonResponseEntity, true);
         }
         else{
 
@@ -874,24 +883,37 @@ public class GenericRestCall<T, X, M> implements Runnable {
     private void errorExecution(){
         boolean executed = false;
 
+        notifySubscribers(null, true);
+
         if(serverTaskFailure != null && !executed){
-            serverTaskFailure.onServerTaskFailed(getErrorBody(errorResponseEntityClass, errorResponse), serverFailure);
+            if(errorResponseEntityClass.getCanonicalName().equals(String.class.getCanonicalName())){
+                serverTaskFailure.onServerTaskFailed((M)errorResponse, serverFailure);
+            }
+            else{
+                serverTaskFailure.onServerTaskFailed(getErrorBody(errorResponseEntityClass, errorResponse), serverFailure);
+            }
             executed = true;
         }
 
         if(clientTaskFailure != null && !executed){
-            clientTaskFailure.onClientTaskFailed(getErrorBody(errorResponseEntityClass, errorResponse), clientFailure);
+            if(errorResponseEntityClass.getCanonicalName().equals(String.class.getCanonicalName())){
+                clientTaskFailure.onClientTaskFailed((M)errorResponse, clientFailure);
+            }
+            else{
+                clientTaskFailure.onClientTaskFailed(getErrorBody(errorResponseEntityClass, errorResponse), clientFailure);
+            }
+
             executed = true;
         }
 
         if(taskFailure != null && !executed){
             try {
-                if(jsonResponseEntityClass.getCanonicalName().equalsIgnoreCase(Void.class.getCanonicalName())) {
+                if(errorResponseEntityClass.getCanonicalName().equalsIgnoreCase(Void.class.getCanonicalName())) {
                     taskFailure.onTaskFailed(null, failure);
                 }
                 else{
                     System.out.println("EasyRest - SAFEGUARD");
-                    taskFailure.onTaskFailed(jsonResponseEntityClass.newInstance(), failure);
+                    taskFailure.onTaskFailed(errorResponseEntityClass.newInstance(), failure);
                 }
 
             } catch (InstantiationException e) {
@@ -948,10 +970,15 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
             //JSONObject jsonObj = new JSONObject(jsonBody.toString());
 
-            T errorBody = errorBodyClass.newInstance();
-            ObjectMapper mapper = new ObjectMapper();
-            errorBody = mapper.readValue(jsonBody, errorBodyClass);
-            return errorBody;
+            if(!errorBodyClass.getCanonicalName().equalsIgnoreCase(String.class.getCanonicalName())){
+                T errorBody = errorBodyClass.newInstance();
+                ObjectMapper mapper = new ObjectMapper();
+                errorBody = mapper.readValue(jsonBody, errorBodyClass);
+                return errorBody;
+            }
+            else{
+                return (T)jsonBody;
+            }
 
         } catch (InstantiationException e) {
             e.printStackTrace();
@@ -1014,6 +1041,8 @@ public class GenericRestCall<T, X, M> implements Runnable {
             this.doPut();
         }
 
+        onPostExecute(result);
+
         return result;
     }
 
@@ -1052,6 +1081,22 @@ public class GenericRestCall<T, X, M> implements Runnable {
             //errorType = SERVER_ERROR;
             serverFailure = (HttpServerErrorException) e;
         }
+    }
+
+    private Object byteToObject(byte[] data){
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = null;
+        try {
+            is = new ObjectInputStream(in);
+            return is.readObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+
     }
 
 }
