@@ -883,7 +883,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
     private void errorExecution(){
         boolean executed = false;
 
-        notifySubscribers(null, true);
+        notifySubscribers(null, false);
 
         if(serverTaskFailure != null && !executed){
             if(errorResponseEntityClass.getCanonicalName().equals(String.class.getCanonicalName())){
