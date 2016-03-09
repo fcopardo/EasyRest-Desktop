@@ -22,6 +22,7 @@ public class LiteCachingStorage {
                 break;
             }
         }
+        cachedRequestAmount++;
     }
 
     public Object getRequest(String name){
