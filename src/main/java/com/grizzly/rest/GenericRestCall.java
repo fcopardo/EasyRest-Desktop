@@ -517,6 +517,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
     {
         if(EasyRest.getCachedRequest(getCachedFileName())!=null){
             jsonResponseEntity = (X) EasyRest.getCachedRequest(getCachedFileName());
+            responseStatus = HttpStatus.OK;
             return true;
         }
 
