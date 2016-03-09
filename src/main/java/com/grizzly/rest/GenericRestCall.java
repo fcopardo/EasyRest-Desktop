@@ -533,6 +533,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
             if(f.exists()){
                 jsonResponseEntity = mapper.readValue(f, jsonResponseEntityClass);
                 this.responseStatus = HttpStatus.OK;
+                EasyRest.cacheRequest(getCachedFileName(), jsonResponseEntity);
                 return true;
             }
             System.out.println("EasyRest - Cache Failure - FileName: " + getCachedFileName());
