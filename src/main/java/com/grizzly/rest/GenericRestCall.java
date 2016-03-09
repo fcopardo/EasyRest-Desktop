@@ -494,6 +494,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private void createSolidCache(){
 
+        EasyRest.cacheRequest(getCachedFileName(), jsonResponseEntity);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -514,6 +515,11 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private boolean getFromSolidCache()
     {
+        if(EasyRest.getCachedRequest(getCachedFileName())!=null){
+            jsonResponseEntity = (X) EasyRest.getCachedRequest(getCachedFileName());
+            return true;
+        }
+
         ObjectMapper mapper = new ObjectMapper();
 
         if(cacheProvider!=null){
