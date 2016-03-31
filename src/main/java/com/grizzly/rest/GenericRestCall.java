@@ -257,8 +257,9 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return deserializationFeatureMap;
     }
 
-    public void setdeserializationFeatureMap(Map<DeserializationFeature, Boolean> deserializationFeatureMap) {
+    public GenericRestCall<T, X, M> setdeserializationFeatureMap(Map<DeserializationFeature, Boolean> deserializationFeatureMap) {
         this.deserializationFeatureMap = deserializationFeatureMap;
+        return this;
     }
 
     public void addDeserializationFeature(DeserializationFeature deserializationFeature, boolean activated) {
@@ -577,12 +578,14 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return this;
     }
 
-    public void setReprocessWhenRefreshing(boolean reprocessWhenRefreshing) {
+    public GenericRestCall<T, X, M> setReprocessWhenRefreshing(boolean reprocessWhenRefreshing) {
         this.reprocessWhenRefreshing = reprocessWhenRefreshing;
+        return this;
     }
 
-    public void setAutomaticCacheRefresh(boolean automaticCacheRefresh) {
+    public GenericRestCall<T, X, M> setAutomaticCacheRefresh(boolean automaticCacheRefresh) {
         this.automaticCacheRefresh = automaticCacheRefresh;
+        return this;
     }
 
     public MappingJackson2HttpMessageConverter getJacksonMapper() {
