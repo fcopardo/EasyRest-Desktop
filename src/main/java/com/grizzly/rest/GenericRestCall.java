@@ -29,6 +29,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.*;
 import rx.Subscriber;
+import rx.functions.Action1;
 
 import java.io.*;
 import java.net.URI;
@@ -101,7 +102,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private String basePath = System.getProperty("user.dir");
 
-    private List<Subscriber<RestResults<X>>> mySubscribers;
+    private List<Action1<RestResults<X>>> mySubscribers;
     private MappingJackson2HttpMessageConverter jacksonConverter;
 
     /**
@@ -605,7 +606,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return this;
     }
 
-    public GenericRestCall<T, X, M> addSuccessSubscriber(Subscriber<RestResults<X>> subscriber){
+    public GenericRestCall<T, X, M> addSuccessSubscriber(Action1<RestResults<X>> subscriber){
         if(mySubscribers==null) mySubscribers = new ArrayList<>();
         mySubscribers.add(subscriber);
         return this;
@@ -1015,7 +1016,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
             results.setSuccessful(success);
 
             //rx.Observable<RestResults<X>> observable = rx.Observable.just(results);
-            for(Subscriber<RestResults<X>> subscriber : mySubscribers ){
+            for(Action1<RestResults<X>> subscriber : mySubscribers ){
                 rx.Observable.just(results).subscribe(subscriber);
             }
         }
