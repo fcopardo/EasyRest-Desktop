@@ -652,9 +652,14 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
                     File f = new File(getCachedFileName());
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
+                        if(getFromSolidCache()){
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }
+                        else{
+                            response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, jsonResponseEntityClass);
+                            result = this.processResponseWithData(response);
+                        }
                     }
                     else{
                         response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, jsonResponseEntityClass);
@@ -831,9 +836,13 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
                     File f = new File(getCachedFileName());
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
+                        if(getFromSolidCache()){
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }else{
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }
                     }
                     else{
                         response = restTemplate.exchange(url, HttpMethod.PUT, requestEntity, jsonResponseEntityClass);
