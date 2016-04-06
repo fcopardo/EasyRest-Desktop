@@ -708,10 +708,16 @@ public class GenericRestCall<T, X, M> implements Runnable {
                     File f = new File(getCachedFileName());
 
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
-                        if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from cache!");
+                        if(getFromSolidCache()) {
+                            if (this.automaticCacheRefresh) this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                            if (EasyRest.isDebugMode()) System.out.println("EasyRest - We got from cache!");
+                        }
+                        else{
+                            response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, jsonResponseEntityClass);
+                            result = this.processResponseWithData(response);
+                            if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from service, cache failed!");
+                        }
                     } else {
                         response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, jsonResponseEntityClass);
                         result = this.processResponseWithData(response);
