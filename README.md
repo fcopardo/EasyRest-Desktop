@@ -40,31 +40,25 @@
         
         and then the dependency:
         
-        compile ('com.github.fcopardo:easyrest:v1.3.7@aar'){
+        compile ('com.github.fcopardo:EasyRest-Desktop:v1.0.3'){
             transitive = true
         }
-        //If you are using jackson, spring-android and ok-http, they are included here.
+        //If you are using jackson, spring-restemplate and RxJava, they are included here.
         
-        Because we are using jackson, we also should add this to the android configuration:
+        Maven:
         
-        android {
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
         
-        packagingOptions {
-                exclude 'META-INF/DEPENDENCIES.txt'
-                exclude 'META-INF/LICENSE.txt'
-                exclude 'META-INF/NOTICE.txt'
-                exclude 'META-INF/NOTICE'
-                exclude 'META-INF/LICENSE'
-                exclude 'META-INF/DEPENDENCIES'
-                exclude 'META-INF/notice.txt'
-                exclude 'META-INF/license.txt'
-                exclude 'META-INF/dependencies.txt'
-                exclude 'META-INF/LGPL2.1'
-                exclude 'META-INF/ASL2.0'
-                exclude 'META-INF/services/com.fasterxml.jackson.core.ObjectCodec'
-                exclude 'META-INF/services/com.fasterxml.jackson.core.JsonFactory'
-            }
-        }
+        dependency:
+        
+        <dependency>
+            <groupId>com.github.fcopardo</groupId>
+            <artifactId>EasyRest-Desktop</artifactId>
+            <version>v1.0.3</version>
+        </dependency>
         
         
         For every call, you are gonna need to inject both the Response body type and the Request body type, as java 
