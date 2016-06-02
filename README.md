@@ -4,7 +4,7 @@ EasyRest for java applications. Port of https://github.com/fcopardo/EasyRest.
 EasyRest
 ========
 
-EasyRest is an extension to SpringrestTemplate that allows making rest calls using generics. it features arbitrary caching 
+EasyRest is an extension to Spring restTemplate that allows making rest calls using generics. it features arbitrary caching 
 (IE: Dear server, I don't care about your opinion, I already have this data, so I'm gonna use it, because I prefer to show 
 something to the user, than nothing!), deferred calls (IE: I already have this data, so I will send this to the user, and 
 meanwhile, I will refresh it), and handles the asynchrony/synchrony. Caching is both physical and logical, survives between 
