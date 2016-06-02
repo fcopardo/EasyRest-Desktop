@@ -29,6 +29,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.*;
 import rx.Subscriber;
+import rx.functions.Action1;
 
 import java.io.*;
 import java.net.URI;
@@ -101,7 +102,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private String basePath = System.getProperty("user.dir");
 
-    private List<Subscriber<RestResults<X>>> mySubscribers;
+    private List<Action1<RestResults<X>>> mySubscribers;
     private MappingJackson2HttpMessageConverter jacksonConverter;
 
     /**
@@ -256,8 +257,9 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return deserializationFeatureMap;
     }
 
-    public void setdeserializationFeatureMap(Map<DeserializationFeature, Boolean> deserializationFeatureMap) {
+    public GenericRestCall<T, X, M> setdeserializationFeatureMap(Map<DeserializationFeature, Boolean> deserializationFeatureMap) {
         this.deserializationFeatureMap = deserializationFeatureMap;
+        return this;
     }
 
     public void addDeserializationFeature(DeserializationFeature deserializationFeature, boolean activated) {
@@ -494,6 +496,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private void createSolidCache(){
 
+        EasyRest.cacheRequest(getCachedFileName(), jsonResponseEntity);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -514,6 +517,12 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
     private boolean getFromSolidCache()
     {
+        if(EasyRest.getCachedRequest(getCachedFileName())!=null){
+            jsonResponseEntity = (X) EasyRest.getCachedRequest(getCachedFileName());
+            responseStatus = HttpStatus.OK;
+            return true;
+        }
+
         ObjectMapper mapper = new ObjectMapper();
 
         if(cacheProvider!=null){
@@ -527,6 +536,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
             if(f.exists()){
                 jsonResponseEntity = mapper.readValue(f, jsonResponseEntityClass);
                 this.responseStatus = HttpStatus.OK;
+                EasyRest.cacheRequest(getCachedFileName(), jsonResponseEntity);
                 return true;
             }
             System.out.println("EasyRest - Cache Failure - FileName: " + getCachedFileName());
@@ -568,12 +578,14 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return this;
     }
 
-    public void setReprocessWhenRefreshing(boolean reprocessWhenRefreshing) {
+    public GenericRestCall<T, X, M> setReprocessWhenRefreshing(boolean reprocessWhenRefreshing) {
         this.reprocessWhenRefreshing = reprocessWhenRefreshing;
+        return this;
     }
 
-    public void setAutomaticCacheRefresh(boolean automaticCacheRefresh) {
+    public GenericRestCall<T, X, M> setAutomaticCacheRefresh(boolean automaticCacheRefresh) {
         this.automaticCacheRefresh = automaticCacheRefresh;
+        return this;
     }
 
     public MappingJackson2HttpMessageConverter getJacksonMapper() {
@@ -597,7 +609,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
         return this;
     }
 
-    public GenericRestCall<T, X, M> addSuccessSubscriber(Subscriber<RestResults<X>> subscriber){
+    public GenericRestCall<T, X, M> addSuccessSubscriber(Action1<RestResults<X>> subscriber){
         if(mySubscribers==null) mySubscribers = new ArrayList<>();
         mySubscribers.add(subscriber);
         return this;
@@ -640,9 +652,14 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
                     File f = new File(getCachedFileName());
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
+                        if(getFromSolidCache()){
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }
+                        else{
+                            response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, jsonResponseEntityClass);
+                            result = this.processResponseWithData(response);
+                        }
                     }
                     else{
                         response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, jsonResponseEntityClass);
@@ -696,10 +713,16 @@ public class GenericRestCall<T, X, M> implements Runnable {
                     File f = new File(getCachedFileName());
 
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
-                        if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from cache!");
+                        if(getFromSolidCache()) {
+                            if (this.automaticCacheRefresh) this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                            if (EasyRest.isDebugMode()) System.out.println("EasyRest - We got from cache!");
+                        }
+                        else{
+                            response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, jsonResponseEntityClass);
+                            result = this.processResponseWithData(response);
+                            if(EasyRest.isDebugMode())System.out.println("EasyRest - We got from service, cache failed!");
+                        }
                     } else {
                         response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, jsonResponseEntityClass);
                         result = this.processResponseWithData(response);
@@ -813,9 +836,13 @@ public class GenericRestCall<T, X, M> implements Runnable {
 
                     File f = new File(getCachedFileName());
                     if(f.exists() && ((enableCache && Calendar.getInstance(Locale.getDefault()).getTimeInMillis()-f.lastModified()<=cacheTime))) {
-                        getFromSolidCache();
-                        if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
-                        result = true;
+                        if(getFromSolidCache()){
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }else{
+                            if(this.automaticCacheRefresh)this.createDelayedCall(reprocessWhenRefreshing);
+                            result = true;
+                        }
                     }
                     else{
                         response = restTemplate.exchange(url, HttpMethod.PUT, requestEntity, jsonResponseEntityClass);
@@ -1007,7 +1034,7 @@ public class GenericRestCall<T, X, M> implements Runnable {
             results.setSuccessful(success);
 
             //rx.Observable<RestResults<X>> observable = rx.Observable.just(results);
-            for(Subscriber<RestResults<X>> subscriber : mySubscribers ){
+            for(Action1<RestResults<X>> subscriber : mySubscribers ){
                 rx.Observable.just(results).subscribe(subscriber);
             }
         }
